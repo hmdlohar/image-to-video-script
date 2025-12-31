@@ -1,0 +1,22 @@
+{
+  "name": "kahani-video-script",
+  "version": "1.0.0",
+  "description": "Node.js script to create story videos from images with transitions",
+  "main": "script.js",
+  "scripts": {
+    "start": "node script.js",
+    "build": "node script.js background_audio.mp3 chotu_khargosh.mp4"
+  },
+  "keywords": [
+    "video",
+    "ffmpeg",
+    "story",
+    "animation"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "fluent-ffmpeg": "^2.1.2"
+  }
+}
+

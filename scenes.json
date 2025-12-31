@@ -1,0 +1,92 @@
+[
+  {
+    "image": "1.png",
+    "start_ms": 0,
+    "end_ms": 3360,
+    "prompt": "A large, ancient banyan tree standing near an Indian village, sprawling roots, thick green leaves, peaceful rural landscape. Children's storybook illustration."
+  },
+  {
+    "image": "2.png",
+    "start_ms": 3360,
+    "end_ms": 6000,
+    "prompt": "A black crow perched on a branch of the giant banyan tree, looking around. The village is visible in the distance. Vibrant colors, storybook style."
+  },
+  {
+    "image": "3.png",
+    "start_ms": 6000,
+    "end_ms": 9360,
+    "prompt": "The crow on the branch, looking clever but slightly lazy, wings tucked in, relaxed posture. Soft sunlight filtering through leaves. Illustrative style."
+  },
+  {
+    "image": "4.png",
+    "start_ms": 9360,
+    "end_ms": 12160,
+    "prompt": "A field below the banyan tree with a pigeon (kabootar) walking around. The pigeon looks hardworking and focused. Rural background, soft colors."
+  },
+  {
+    "image": "5.png",
+    "start_ms": 12160,
+    "end_ms": 14000,
+    "prompt": "The pigeon picking up grains from the ground in the field, busy and dedicated. Natural light, detailed feathers, storybook art."
+  },
+  {
+    "image": "6.png",
+    "start_ms": 14000,
+    "end_ms": 18000,
+    "prompt": "The pigeon drinking water from a small puddle and then flying towards a simple birdhouse or nest as evening approaches. Warm sunset light."
+  },
+  {
+    "image": "7.png",
+    "start_ms": 18000,
+    "end_ms": 22000,
+    "prompt": "Dramatic scene of a sudden strong storm with dark clouds, wind blowing the banyan tree leaves, and rain starting to fall. Tense atmosphere."
+  },
+  {
+    "image": "8.png",
+    "start_ms": 22000,
+    "end_ms": 27000,
+    "prompt": "The crow sitting on a branch, looking unbothered by the rain, eyes half-closed, lazy expression. Raindrops falling around him."
+  },
+  {
+    "image": "9.png",
+    "start_ms": 27000,
+    "end_ms": 31000,
+    "prompt": "The pigeon talking to the crow, looking concerned, pointing away with its wing. The wind is picking up. Expressive characters."
+  },
+  {
+    "image": "10.png",
+    "start_ms": 31000,
+    "end_ms": 35000,
+    "prompt": "The crow laughing at the pigeon, staying stubbornly on the branch. The pigeon looks worried and ready to fly away."
+  },
+  {
+    "image": "11.png",
+    "start_ms": 35000,
+    "end_ms": 39000,
+    "prompt": "The storm intensifies, lightning in the sky, a large branch of the banyan tree snapping and falling. Chaotic and dangerous moment."
+  },
+  {
+    "image": "12.png",
+    "start_ms": 39000,
+    "end_ms": 42000,
+    "prompt": "The crow flying away in panic as the branch breaks, feathers ruffled by the wind, looking scared. High action shot."
+  },
+  {
+    "image": "13.png",
+    "start_ms": 42000,
+    "end_ms": 45000,
+    "prompt": "The pigeon safe inside a small, sturdy rock cave or crevice, watching the storm from inside. Warm and protected feeling."
+  },
+  {
+    "image": "14.png",
+    "start_ms": 45000,
+    "end_ms": 51000,
+    "prompt": "The pigeon looking out from the cave at the wet, tired crow. The pigeon has a wise and helpful expression. Moral of the story moment."
+  },
+  {
+    "image": "15.png",
+    "start_ms": 51000,
+    "end_ms": 55000,
+    "prompt": "The crow with its head bowed in shame or humility, standing near the pigeon's cave, looking repentant. The storm is subsiding. Happy ending."
+  }
+]
