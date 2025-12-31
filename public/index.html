@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kahani Video AI | Image to Video</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div class="glass-container">
+        <header>
+            <h1>Kahani <span>Video Creator</span></h1>
+            <p>Transform your images and SRT into cinematic stories</p>
+        </header>
+
+        <main>
+            <section class="upload-section">
+                <div class="input-group">
+                    <label for="audio">Audio File (WAV/MP3)</label>
+                    <div class="file-input-wrapper" id="audio-wrapper">
+                        <input type="file" id="audio" accept=".wav,.mp3">
+                        <span class="file-label">Choose Audio</span>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="srt">Subtitle File (SRT)</label>
+                    <div class="file-input-wrapper" id="srt-wrapper">
+                        <input type="file" id="srt" accept=".srt">
+                        <span class="file-label">Choose SRT</span>
+                    </div>
+                </div>
+
+                <div class="input-group full-width">
+                    <label for="images">Storybook Images (Select Multiple)</label>
+                    <div class="file-input-wrapper" id="images-wrapper">
+                        <input type="file" id="images" accept="image/*" multiple disabled>
+                        <span class="file-label">Select SRT first</span>
+                    </div>
+                    <div id="image-count" class="status-msg"></div>
+                </div>
+
+                <button id="generate-btn" class="primary-btn">Generate Video</button>
+            </section>
+
+            <section id="preview-container" class="preview-section hidden">
+                <h3>🎬 Storyboard Preview</h3>
+                <div id="preview-grid" class="preview-grid"></div>
+            </section>
+
+            <section id="progress-container" class="hidden">
+                <div class="progress-bar-bg">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <p id="status-text">Ready to start...</p>
+            </section>
+
+            <section id="result-container" class="hidden">
+                <div class="success-card">
+                    <h3>✨ Video Ready!</h3>
+                    <a id="download-link" href="#" class="download-btn" download>Download MP4</a>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 Kahani AI Studio</p>
+        </footer>
+    </div>
+
+    <script src="client.js"></script>
+</body>
+</html>

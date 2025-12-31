@@ -2,9 +2,28 @@ const fs = require('fs');
 const path = require('path');
 const ffmpeg = require('fluent-ffmpeg');
 
-const IMAGE_DIR = "../2";
-const AUDIO_PATH = "../2/2.wav";
-const OUTPUT_FILE = "../2/chotu_khargosh.mp4";
+/**
+ * Robust SRT Parser that handles both dots and commas in timestamps
+ */
+function parseSRT(data) {
+    const segments = [];
+    const blocks = data.trim().split(/\n\s*\n/);
+
+    for (const block of blocks) {
+        const lines = block.split('\n');
+        if (lines.length >= 2) {
+            const timeMatch = lines[1].match(/(\d{1,2}:\d{2}:\d{2}[.,]\d{3}) --> (\d{1,2}:\d{2}:\d{2}[.,]\d{3})/);
+            if (timeMatch) {
+                segments.push({
+                    startTime: timeMatch[1].replace('.', ','),
+                    endTime: timeMatch[2].replace('.', ','),
+                    text: lines.slice(2).join('\n')
+                });
+            }
+        }
+    }
+    return segments;
+}
 
 // Configuration
 const FPS = 30;
@@ -12,13 +31,45 @@ const TARGET_SIZE = { width: 1080, height: 1920 }; // Portrait 9:16
 const CROSSFADE_DURATION = 0.3; // seconds
 const ZOOM_RATE = 0.08; // Ken Burns zoom rate
 
-// Load scenes data
-const scenesData = JSON.parse(fs.readFileSync('scenes.json', 'utf8'));
+/**
+ * Parse SRT time string to milliseconds
+ */
+function srtTimeToMs(timeStr) {
+  const parts = timeStr.split(/[:,]/);
+  return (
+    parseInt(parts[0]) * 3600000 +
+    parseInt(parts[1]) * 60000 +
+    parseInt(parts[2]) * 1000 +
+    parseInt(parts[3])
+  );
+}
+
+/**
+ * Convert SRT content and image list to scenes data
+ */
+function srtToScenes(srtContent, imageDir) {
+  const srtData = parseSRT(srtContent);
+  const images = fs.readdirSync(imageDir)
+    .filter(f => /\.(png|jpg|jpeg|webp)$/i.test(f))
+    .sort((a, b) => {
+      // Natural sort for filenames like 1.png, 2.png, 10.png
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+  return srtData.map((item, index) => {
+    return {
+      image: path.join(imageDir, images[index] || images[images.length - 1]),
+      start_ms: srtTimeToMs(item.startTime),
+      end_ms: srtTimeToMs(item.endTime),
+      text: item.text
+    };
+  });
+}
 
 /**
  * Create a video clip from an image with Ken Burns effect and fade transitions
  */
-function createImageClip(scene, index, totalScenes, outputDir) {
+function createImageClip(scene, index, totalScenes, outputDir, imageDir) {
   return new Promise((resolve, reject) => {
     const duration = (scene.end_ms - scene.start_ms) / 1000.0;
     const outputPath = path.join(outputDir, `clip_${index}.mp4`);
@@ -56,9 +107,7 @@ function createImageClip(scene, index, totalScenes, outputDir) {
     const filterComplex = filters.join(',');
     
     // Resolve image path
-    const imagePath = path.isAbsolute(scene.image) 
-      ? scene.image 
-      : path.resolve(IMAGE_DIR, scene.image);
+    const imagePath = scene.image;
     
     if (!fs.existsSync(imagePath)) {
       reject(new Error(`Image not found: ${imagePath}`));
@@ -115,17 +164,16 @@ function createConcatFile(clipPaths, outputDir) {
  * Concatenate all clips with exact timing preservation
  * Note: Crossfades are already applied to individual clips via fade in/out
  */
-function concatenateClips(clipPaths, outputDir, outputFile) {
+function concatenateClips(clipPaths, outputDir, outputFile, totalDuration = 0) {
   return new Promise((resolve, reject) => {
     const concatFile = createConcatFile(clipPaths, outputDir);
     const outputPath = path.resolve(outputFile);
     
-    // Calculate total expected duration for verification
-    const totalDuration = scenesData.reduce((sum, scene) => {
-      return sum + (scene.end_ms - scene.start_ms) / 1000.0;
-    }, 0);
-    
-    console.log(`  Concatenating ${clipPaths.length} clips, expected total duration: ${totalDuration.toFixed(3)}s`);
+    if (totalDuration > 0) {
+      console.log(`  Concatenating ${clipPaths.length} clips, expected total duration: ${totalDuration.toFixed(3)}s`);
+    } else {
+      console.log(`  Concatenating ${clipPaths.length} clips...`);
+    }
     
     ffmpeg()
       .input(concatFile)
@@ -200,8 +248,16 @@ function addAudio(videoPath, audioPath, outputFile) {
 /**
  * Main function to create story video
  */
-async function createStoryVideo(imageData, audioPath, outputName = 'chotu_khargosh.mp4') {
-  const tempDir = path.join(__dirname, 'temp_clips');
+async function createStoryVideo(options) {
+  const {
+    srtContent,
+    imageDir,
+    audioPath,
+    outputName = 'output.mp4',
+    onProgress = () => {}
+  } = options;
+
+  const tempDir = path.join(__dirname, 'temp_clips_' + Date.now());
   
   // Create temp directory
   if (!fs.existsSync(tempDir)) {
@@ -209,22 +265,33 @@ async function createStoryVideo(imageData, audioPath, outputName = 'chotu_khargo
   }
   
   try {
+    onProgress({ status: 'parsing', message: 'Parsing SRT and images...' });
+    const scenesData = srtToScenes(srtContent, imageDir);
+
     console.log('🎬 Starting video creation...\n');
     
     // Step 1: Create individual clips
     console.log('📹 Creating individual clips...');
     const clipPaths = [];
-    for (let i = 0; i < imageData.length; i++) {
-      const clipPath = await createImageClip(imageData[i], i, imageData.length, tempDir);
+    for (let i = 0; i < scenesData.length; i++) {
+      onProgress({ 
+        status: 'clipping', 
+        message: `Creating clip ${i + 1}/${scenesData.length}`,
+        progress: (i / scenesData.length) * 50 // First 50% of progress
+      });
+      const clipPath = await createImageClip(scenesData[i], i, scenesData.length, tempDir, imageDir);
       clipPaths.push(clipPath);
     }
     
     // Step 2: Concatenate clips
+    onProgress({ status: 'concatenating', message: 'Merging clips', progress: 60 });
     console.log('\n🔗 Concatenating clips...');
+    const totalDuration = scenesData.reduce((sum, scene) => sum + (scene.end_ms - scene.start_ms) / 1000.0, 0);
     const tempVideo = path.join(tempDir, 'temp_concatenated.mp4');
-    await concatenateClips(clipPaths, tempDir, tempVideo);
+    await concatenateClips(clipPaths, tempDir, tempVideo, totalDuration);
     
     // Step 3: Add audio
+    onProgress({ status: 'audio', message: 'Adding audio...', progress: 80 });
     console.log('\n🎵 Adding audio...');
     const audioFilePath = path.resolve(audioPath);
     if (!fs.existsSync(audioFilePath)) {
@@ -234,28 +301,45 @@ async function createStoryVideo(imageData, audioPath, outputName = 'chotu_khargo
     await addAudio(tempVideo, audioFilePath, outputName);
     
     // Cleanup temp files
+    onProgress({ status: 'cleanup', message: 'Cleaning up...', progress: 95 });
     console.log('\n🧹 Cleaning up temporary files...');
-    // fs.rmSync(tempDir, { recursive: true, force: true });
+    fs.rmSync(tempDir, { recursive: true, force: true });
     
+    onProgress({ status: 'done', message: 'Video created successfully!', progress: 100 });
     console.log(`\n✅ Video created successfully: ${path.resolve(outputName)}`);
+    return path.resolve(outputName);
     
   } catch (error) {
     console.error('\n❌ Error creating video:', error);
+    onProgress({ status: 'error', message: error.message });
+    // Cleanup on error
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
     throw error;
   }
 }
 
 // Run the script
 if (require.main === module) {
-  const audioPath = process.argv[2] || AUDIO_PATH;
-  const outputName = process.argv[3] || OUTPUT_FILE;
+  const srtPath = process.argv[2];
+  const imageDir = process.argv[3];
+  const audioPath = process.argv[4];
+  const outputName = process.argv[5] || 'output.mp4';
+
+  if (!srtPath || !imageDir || !audioPath) {
+    console.log('Usage: node script.js <srt_path> <image_dir> <audio_path> [output_name]');
+    process.exit(1);
+  }
+
+  const srtContent = fs.readFileSync(srtPath, 'utf8');
   
-  createStoryVideo(scenesData, audioPath, outputName)
+  createStoryVideo({ srtContent, imageDir, audioPath, outputName })
     .catch((error) => {
       console.error('Fatal error:', error);
       process.exit(1);
     });
 }
 
-module.exports = { createStoryVideo };
+module.exports = { createStoryVideo, srtToScenes };
 
