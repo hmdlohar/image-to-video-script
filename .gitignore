@@ -22,3 +22,6 @@ Thumbs.db
 # Project specific generated assets (optional, uncomment if you want to ignore them)
 # *.png
 # *.mp4
+
+
+temp_clips_*/
