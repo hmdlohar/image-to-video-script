@@ -26,7 +26,7 @@ function parseSRT(data) {
 }
 
 // Configuration
-const FPS = 30;
+const FPS = 60;
 const TARGET_SIZE = { width: 1080, height: 1920 }; // Portrait 9:16
 const CROSSFADE_DURATION = 0.3; // seconds
 const ZOOM_RATE = 0.08; // Ken Burns zoom rate
@@ -84,9 +84,14 @@ function createImageClip(scene, index, totalScenes, outputDir, imageDir) {
     const totalFrames = Math.ceil((duration + safetyBuffer) * FPS);
     const zoomIncrement = (endZoom - startZoom) / (duration * FPS);
     
+    // scale and crop to target aspect ratio first, then apply zoompan
+    // 1. scale=w:h:force_original_aspect_ratio=increase makes the image fill the area
+    // 2. crop=w:h centers the crop
+    const scaleCropFilter = `scale=${TARGET_SIZE.width}:${TARGET_SIZE.height}:force_original_aspect_ratio=increase,crop=${TARGET_SIZE.width}:${TARGET_SIZE.height}`;
+    
     // zoompan filter: d is total frames to generate
     // The -t flag will cut this to exact duration
-    const zoomFilter = `zoompan=z='min(${startZoom}+on*${zoomIncrement},${endZoom})':d=${totalFrames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${TARGET_SIZE.width}x${TARGET_SIZE.height}`;
+    const zoomFilter = `zoompan=z='min(${startZoom}+on*${zoomIncrement},${endZoom})':d=${totalFrames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${TARGET_SIZE.width}x${TARGET_SIZE.height}:fps=${FPS}`;
     
     // Fade filters - apply fades within the exact duration
     let fadeFilters = [];
@@ -98,9 +103,8 @@ function createImageClip(scene, index, totalScenes, outputDir, imageDir) {
       fadeFilters.push(`fade=t=out:st=${fadeOutStart}:d=${CROSSFADE_DURATION}`);
     }
     
-    // Combine all filters: zoom first, then fade
-    // The -t flag ensures exact duration regardless of zoompan frame generation
-    let filters = [zoomFilter];
+    // Combine all filters: scale/crop first, then zoom, then fade
+    let filters = [scaleCropFilter, zoomFilter];
     if (fadeFilters.length > 0) {
       filters = filters.concat(fadeFilters);
     }
