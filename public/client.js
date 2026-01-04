@@ -1,209 +1,247 @@
 const socket = io();
 
-const sessionId = Math.random().toString(36).substring(2, 15);
-let uploadedFiles = {
-    audio: false,
-    srt: false,
-    images: 0
-};
+// State management
+let sessionId = Math.random().toString(36).substring(7);
+let currentMode = "story"; // 'story' or 'mixer'
 
-// UI Elements
-const audioInput = document.getElementById('audio');
-const srtInput = document.getElementById('srt');
-const imagesInput = document.getElementById('images');
-const generateBtn = document.getElementById('generate-btn');
-const progressContainer = document.getElementById('progress-container');
-const progressFill = document.getElementById('progress-fill');
-const statusText = document.getElementById('status-text');
-const resultContainer = document.getElementById('result-container');
-const downloadLink = document.getElementById('download-link');
-const imageCount = document.getElementById('image-count');
-const previewContainer = document.getElementById('preview-container');
-const previewGrid = document.getElementById('preview-grid');
+// Elements - Shared
+const progressContainer = document.getElementById("progress-container");
+const progressFill = document.getElementById("progress-fill");
+const statusText = document.getElementById("status-text");
+const resultContainer = document.getElementById("result-container");
+const downloadLink = document.getElementById("download-link");
+const resetBtn = document.getElementById("reset-btn");
 
-let srtData = [];
-let imagePreviews = [];
+// Elements - Story Mode
+const sectionStory = document.getElementById("section-story");
+const audioInput = document.getElementById("audio");
+const srtInput = document.getElementById("srt");
+const imagesInput = document.getElementById("images");
+const generateStoryBtn = document.getElementById("generate-story-btn");
+const previewContainer = document.getElementById("preview-container");
+const previewGrid = document.getElementById("preview-grid");
+const imageCount = document.getElementById("image-count");
 
-// Handle File Selection and Upload
-async function uploadFile(file, fieldname) {
-    const formData = new FormData();
-    formData.append(fieldname, file);
-    formData.append('sessionId', sessionId);
+// Elements - Mixer Mode
+const sectionMixer = document.getElementById("section-mixer");
+const mixerMainAudio = document.getElementById("mixer-main-audio");
+const mixerBgAudio = document.getElementById("mixer-bg-audio");
+const mixerVisual = document.getElementById("mixer-visual");
+const mixerBgVol = document.getElementById("mixer-bg-vol");
+const generateMixerBtn = document.getElementById("generate-mixer-btn");
 
-    try {
-        const response = await fetch('/upload', {
-            method: 'POST',
-            body: formData
-        });
-        if (!response.ok) throw new Error('Upload failed');
-        return true;
-    } catch (err) {
-        console.error(err);
-        return false;
-    }
+// Tabs
+const tabStory = document.getElementById("tab-story");
+const tabMixer = document.getElementById("tab-mixer");
+
+// Tab Switching logic
+tabStory.addEventListener("click", () => switchMode("story"));
+tabMixer.addEventListener("click", () => switchMode("mixer"));
+
+function switchMode(mode) {
+  currentMode = mode;
+  tabStory.classList.toggle("active", mode === "story");
+  tabMixer.classList.toggle("active", mode === "mixer");
+  sectionStory.classList.toggle("hidden", mode !== "story");
+  sectionMixer.classList.toggle("hidden", mode !== "mixer");
+
+  // Hide preview/results when switching
+  previewContainer.classList.add("hidden");
+  resultContainer.classList.add("hidden");
+  progressContainer.classList.add("hidden");
 }
 
-let requiredImages = 0;
+// --- Story Mode Logic ---
 
-// Update UI on file selection
-audioInput.addEventListener('change', (e) => {
-    if (e.target.files[0]) {
-        updateLabel('audio-wrapper', e.target.files[0].name);
-        uploadedFiles.audio = true;
-    }
-});
+srtInput.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-srtInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        updateLabel('srt-wrapper', file.name);
-        uploadedFiles.srt = true;
-        
-        // Parse SRT to count segments
-        const text = await file.text();
-        const matches = [...text.matchAll(/(\d{1,2}:\d{2}:\d{2}[.,]\d{3}) --> (\d{1,2}:\d{2}:\d{2}[.,]\d{3})/g)];
-        const textMatches = text.trim().split(/\n\s*\n/).map(block => block.split('\n').slice(2).join(' '));
-        
-        srtData = matches.map((m, i) => ({
-            startTime: m[1],
-            endTime: m[2],
-            text: textMatches[i] || ''
-        }));
-        
-        requiredImages = srtData.length;
-        
-        // Enable images input
-        imagesInput.disabled = false;
-        updateLabel('images-wrapper', `Choose ${requiredImages} Images`);
-        imageCount.innerText = `SRT loaded: ${requiredImages} scenes detected.`;
-        imageCount.style.color = 'var(--primary)';
-        
-        if (imagePreviews.length > 0) renderPreview();
-    }
-});
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const content = e.target.result;
+    const blocks = parseSRT(content);
 
-imagesInput.addEventListener('change', (e) => {
-    const files = e.target.files;
-    if (files.length > 0) {
-        if (files.length !== requiredImages) {
-            updateLabel('images-wrapper', `Error: Selected ${files.length}/${requiredImages}`, 'red');
-            imageCount.innerText = `Please select exactly ${requiredImages} images. You selected ${files.length}.`;
-            imageCount.style.color = '#ef4444';
-            uploadedFiles.images = 0;
-        } else {
-            updateLabel('images-wrapper', `${files.length} images selected`, 'var(--success)');
-            imageCount.innerText = `Perfect! Correct number of images selected.`;
-            imageCount.style.color = 'var(--success)';
-            uploadedFiles.images = files.length;
-            
-            // Generate previews
-            imagePreviews = Array.from(files)
-                .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
-                .map(file => URL.createObjectURL(file));
-            
-            renderPreview();
-        }
-    }
-});
-
-function renderPreview() {
-    if (srtData.length === 0 || imagePreviews.length === 0) return;
-    
-    previewGrid.innerHTML = '';
-    previewContainer.classList.remove('hidden');
-    
-    srtData.forEach((scene, i) => {
-        const imgSrc = imagePreviews[i] || imagePreviews[imagePreviews.length - 1];
-        const card = document.createElement('div');
-        card.className = 'preview-card';
-        card.innerHTML = `
-            <img src="${imgSrc}" alt="Scene ${i+1}">
-            <div class="preview-info">
-                <div class="preview-time">${scene.startTime}</div>
-                <div class="preview-text">${scene.text}</div>
-            </div>
-        `;
-        previewGrid.appendChild(card);
+    previewGrid.innerHTML = "";
+    blocks.forEach((block, i) => {
+      const item = document.createElement("div");
+      item.className = "preview-item";
+      item.innerHTML = `<span class="time-tag">${block.startTime}</span>`;
+      item.style.backgroundColor = "rgba(255,255,255,0.05)";
+      previewGrid.appendChild(item);
     });
-}
 
-function updateLabel(wrapperId, text, borderColor = 'var(--success)') {
-    const wrapper = document.getElementById(wrapperId);
-    wrapper.querySelector('.file-label').innerText = text;
-    wrapper.style.borderColor = borderColor;
-}
-
-// Generate Video
-generateBtn.addEventListener('click', async () => {
-    if (!uploadedFiles.audio || !uploadedFiles.srt || uploadedFiles.images === 0) {
-        alert('Please select all required files.');
-        return;
-    }
-
-    generateBtn.disabled = true;
-    progressContainer.classList.remove('hidden');
-    resultContainer.classList.add('hidden');
-    
-    statusText.innerText = 'Uploading assets...';
-    progressFill.style.width = '5%';
-
-    try {
-        // Upload All Files
-        const audioFile = audioInput.files[0];
-        const srtFile = srtInput.files[0];
-        const imageFiles = Array.from(imagesInput.files);
-
-        // Upload audio & srt
-        await uploadToBackend(audioFile, 'audio');
-        await uploadToBackend(srtFile, 'srt');
-
-        // Upload images
-        statusText.innerText = 'Uploading images...';
-        for (let i = 0; i < imageFiles.length; i++) {
-            await uploadToBackend(imageFiles[i], 'images');
-            const p = 5 + ((i + 1) / imageFiles.length) * 15; // 5% to 20%
-            progressFill.style.width = `${p}%`;
-        }
-
-        // Trigger generation
-        socket.emit('start-generation', { sessionId });
-
-    } catch (err) {
-        statusText.innerText = 'Error: ' + err.message;
-        generateBtn.disabled = false;
-    }
+    previewContainer.classList.remove("hidden");
+    imagesInput.disabled = false;
+    imagesInput.nextElementSibling.textContent = `Select ${blocks.length} images`;
+  };
+  reader.readAsText(file);
 });
 
-async function uploadToBackend(file, fieldname) {
-    const formData = new FormData();
-    formData.append(fieldname, file);
+imagesInput.addEventListener("change", (e) => {
+  const files = Array.from(e.target.files);
+  imageCount.textContent = `${files.length} images selected`;
 
+  const previews = previewGrid.querySelectorAll(".preview-item");
+  files.slice(0, previews.length).forEach((file, i) => {
+    const url = URL.createObjectURL(file);
+    previews[i].style.backgroundImage = `url(${url})`;
+  });
+});
+
+generateStoryBtn.addEventListener("click", async () => {
+  if (
+    !audioInput.files[0] ||
+    !srtInput.files[0] ||
+    imagesInput.files.length === 0
+  ) {
+    alert("Please select audio, SRT, and images.");
+    return;
+  }
+
+  setProcessing(true);
+
+  try {
+    const formData = new FormData();
+    formData.append("audio", audioInput.files[0]);
+    formData.append("srt", srtInput.files[0]);
+    Array.from(imagesInput.files).forEach((f) => formData.append("images", f));
+    formData.append("sessionId", sessionId);
+
+    statusText.textContent = "Uploading files...";
     const res = await fetch(`/upload?sessionId=${sessionId}`, {
-        method: 'POST',
-        body: formData
+      method: "POST",
+      body: formData,
     });
-    if (!res.ok) throw new Error(`Failed to upload ${fieldname}`);
+
+    if (!res.ok) throw new Error("Upload failed");
+
+    socket.emit("start-generation", { sessionId });
+  } catch (err) {
+    alert(err.message);
+    setProcessing(false);
+  }
+});
+
+// --- Mixer Mode Logic ---
+
+generateMixerBtn.addEventListener("click", async () => {
+  if (
+    !mixerMainAudio.files[0] ||
+    !mixerBgAudio.files[0] ||
+    !mixerVisual.files[0]
+  ) {
+    alert("Please select all required files.");
+    return;
+  }
+
+  setProcessing(true);
+
+  try {
+    const formData = new FormData();
+    formData.append("audio", mixerMainAudio.files[0]);
+    formData.append("bgAudio", mixerBgAudio.files[0]);
+    formData.append("visual", mixerVisual.files[0]);
+    formData.append("sessionId", sessionId);
+
+    statusText.textContent = "Uploading files...";
+    const res = await fetch(`/upload?sessionId=${sessionId}`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) throw new Error("Upload failed");
+
+    socket.emit("start-mixed-generation", {
+      sessionId,
+      bgVolume: mixerBgVol.value,
+      framerate: 30,
+    });
+  } catch (err) {
+    alert(err.message);
+    setProcessing(false);
+  }
+});
+
+// --- Shared Socket Events ---
+
+socket.on("progress", (data) => {
+  progressContainer.classList.remove("hidden");
+  progressFill.style.width = `${data.progress || 0}%`;
+  statusText.textContent = data.message;
+});
+
+socket.on("finished", (data) => {
+  setProcessing(false);
+  resultContainer.classList.remove("hidden");
+  downloadLink.href = data.url;
+  downloadLink.download = data.filename;
+});
+
+socket.on("error", (data) => {
+  alert("Error: " + data.message);
+  setProcessing(false);
+});
+
+resetBtn.addEventListener("click", () => {
+  sessionId = Math.random().toString(36).substring(7);
+  resultContainer.classList.add("hidden");
+  progressContainer.classList.add("hidden");
+  progressFill.style.width = "0%";
+  statusText.textContent = "Ready to start...";
+
+  // Reset forms
+  audioInput.value = "";
+  srtInput.value = "";
+  imagesInput.value = "";
+  imagesInput.disabled = true;
+  imageCount.textContent = "";
+  previewGrid.innerHTML = "";
+  previewContainer.classList.add("hidden");
+
+  mixerMainAudio.value = "";
+  mixerBgAudio.value = "";
+  mixerVisual.value = "";
+});
+
+// Utilities
+function setProcessing(isProcessing) {
+  generateStoryBtn.disabled = isProcessing;
+  generateMixerBtn.disabled = isProcessing;
+  if (isProcessing) {
+    progressContainer.classList.remove("hidden");
+    resultContainer.classList.add("hidden");
+  }
 }
 
-// Socket progress listeners
-socket.on('progress', (data) => {
-    statusText.innerText = data.message;
-    if (data.progress) {
-        // Map backend 0-100 to 20-100 (since upload took first 20%)
-        const totalProgress = 20 + (data.progress * 0.8);
-        progressFill.style.width = `${totalProgress}%`;
+function parseSRT(data) {
+  const segments = [];
+  const blocks = data.trim().split(/\n\s*\n/);
+  for (const block of blocks) {
+    const lines = block.split("\n");
+    if (lines.length >= 2) {
+      const timeMatch = lines[1].match(
+        /(\d{1,2}:\d{2}:\d{2}[.,]\d{3}) --> (\d{1,2}:\d{2}:\d{2}[.,]\d{3})/
+      );
+      if (timeMatch) {
+        segments.push({
+          startTime: timeMatch[1].replace(".", ","),
+        });
+      }
     }
-});
+  }
+  return segments;
+}
 
-socket.on('finished', (data) => {
-    statusText.innerText = 'Complete!';
-    progressFill.style.width = '100%';
-    resultContainer.classList.remove('hidden');
-    downloadLink.href = data.url;
-    generateBtn.disabled = false;
-});
-
-socket.on('error', (data) => {
-    statusText.innerText = 'Error: ' + data.message;
-    generateBtn.disabled = false;
+// Update file labels
+document.querySelectorAll('input[type="file"]').forEach((input) => {
+  input.addEventListener("change", (e) => {
+    const label = e.target.nextElementSibling;
+    if (label && e.target.files.length > 0) {
+      label.textContent =
+        e.target.files.length === 1
+          ? e.target.files[0].name
+          : `${e.target.files.length} files selected`;
+    }
+  });
 });

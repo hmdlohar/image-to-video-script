@@ -1,75 +1,153 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kahani Video AI | Image to Video</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kahani Video AI | Story & Mixer</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
     <script src="/socket.io/socket.io.js"></script>
-</head>
-<body>
+  </head>
+  <body>
     <div class="glass-container">
-        <header>
-            <h1>Kahani <span>Video Creator</span></h1>
-            <p>Transform your images and SRT into cinematic stories</p>
-        </header>
+      <header>
+        <h1>Kahani <span>Video Studio</span></h1>
+        <div class="mode-tabs">
+          <button id="tab-story" class="tab-btn active">Story Creator</button>
+          <button id="tab-mixer" class="tab-btn">Video Mixer</button>
+        </div>
+      </header>
 
-        <main>
-            <section class="upload-section">
-                <div class="input-group">
-                    <label for="audio">Audio File (WAV/MP3)</label>
-                    <div class="file-input-wrapper" id="audio-wrapper">
-                        <input type="file" id="audio" accept=".wav,.mp3">
-                        <span class="file-label">Choose Audio</span>
-                    </div>
-                </div>
+      <main>
+        <!-- Story Creator Section (Existing) -->
+        <section id="section-story" class="upload-section">
+          <p class="section-desc">
+            Transform images and SRT into cinematic stories
+          </p>
+          <div class="input-grid">
+            <div class="input-group">
+              <label for="audio">Main Audio (WAV/MP3)</label>
+              <div class="file-input-wrapper">
+                <input type="file" id="audio" accept=".wav,.mp3" />
+                <span class="file-label">Choose Audio</span>
+              </div>
+            </div>
 
-                <div class="input-group">
-                    <label for="srt">Subtitle File (SRT)</label>
-                    <div class="file-input-wrapper" id="srt-wrapper">
-                        <input type="file" id="srt" accept=".srt">
-                        <span class="file-label">Choose SRT</span>
-                    </div>
-                </div>
+            <div class="input-group">
+              <label for="srt">Subtitle File (SRT)</label>
+              <div class="file-input-wrapper">
+                <input type="file" id="srt" accept=".srt" />
+                <span class="file-label">Choose SRT</span>
+              </div>
+            </div>
 
-                <div class="input-group full-width">
-                    <label for="images">Storybook Images (Select Multiple)</label>
-                    <div class="file-input-wrapper" id="images-wrapper">
-                        <input type="file" id="images" accept="image/*" multiple disabled>
-                        <span class="file-label">Select SRT first</span>
-                    </div>
-                    <div id="image-count" class="status-msg"></div>
-                </div>
+            <div class="input-group full-width">
+              <label for="images">Storybook Images (Multiple)</label>
+              <div class="file-input-wrapper">
+                <input
+                  type="file"
+                  id="images"
+                  accept="image/*"
+                  multiple
+                  disabled
+                />
+                <span class="file-label">Select SRT first</span>
+              </div>
+              <div id="image-count" class="status-msg"></div>
+            </div>
+          </div>
+          <button id="generate-story-btn" class="primary-btn">
+            Generate Story Video
+          </button>
+        </section>
 
-                <button id="generate-btn" class="primary-btn">Generate Video</button>
-            </section>
+        <!-- Video Mixer Section (New) -->
+        <section id="section-mixer" class="upload-section hidden">
+          <p class="section-desc">
+            Mix bg audio and loop video/image to match main audio
+          </p>
+          <div class="input-grid">
+            <div class="input-group">
+              <label for="mixer-main-audio">Main Audio (AAC/MP3)</label>
+              <div class="file-input-wrapper">
+                <input
+                  type="file"
+                  id="mixer-main-audio"
+                  accept=".aac,.mp3,.wav"
+                />
+                <span class="file-label">Choose Main Audio</span>
+              </div>
+            </div>
 
-            <section id="preview-container" class="preview-section hidden">
-                <h3>🎬 Storyboard Preview</h3>
-                <div id="preview-grid" class="preview-grid"></div>
-            </section>
+            <div class="input-group">
+              <label for="mixer-bg-audio">Background Audio (MP3)</label>
+              <div class="file-input-wrapper">
+                <input type="file" id="mixer-bg-audio" accept=".mp3,.wav" />
+                <span class="file-label">Choose Background</span>
+              </div>
+            </div>
 
-            <section id="progress-container" class="hidden">
-                <div class="progress-bar-bg">
-                    <div id="progress-fill" class="progress-fill"></div>
-                </div>
-                <p id="status-text">Ready to start...</p>
-            </section>
+            <div class="input-group">
+              <label for="mixer-visual">Input Video or Image</label>
+              <div class="file-input-wrapper">
+                <input type="file" id="mixer-visual" accept="image/*,video/*" />
+                <span class="file-label">Choose Visual</span>
+              </div>
+            </div>
 
-            <section id="result-container" class="hidden">
-                <div class="success-card">
-                    <h3>✨ Video Ready!</h3>
-                    <a id="download-link" href="#" class="download-btn" download>Download MP4</a>
-                </div>
-            </section>
-        </main>
+            <div class="input-group">
+              <label for="mixer-bg-vol">BG Volume (0.1 - 1.0)</label>
+              <input
+                type="number"
+                id="mixer-bg-vol"
+                value="0.3"
+                step="0.1"
+                min="0"
+                max="1"
+              />
+            </div>
+          </div>
+          <button id="generate-mixer-btn" class="primary-btn">
+            Generate Mixed Video
+          </button>
+        </section>
 
-        <footer>
-            <p>&copy; 2025 Kahani AI Studio</p>
-        </footer>
+        <!-- Preview/Progress shared area -->
+        <section id="preview-container" class="preview-section hidden">
+          <h3>🎬 Storyboard Preview</h3>
+          <div id="preview-grid" class="preview-grid"></div>
+        </section>
+
+        <section id="progress-container" class="hidden">
+          <div class="progress-bar-bg">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+          <p id="status-text">Ready to start...</p>
+        </section>
+
+        <section id="result-container" class="hidden">
+          <div class="success-card">
+            <h3>✨ Video Ready!</h3>
+            <div class="result-actions">
+              <a id="download-link" href="#" class="download-btn" download
+                >Download MP4</a
+              >
+              <button id="reset-btn" class="secondary-btn">
+                Create Another
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <p>&copy; 2025 Kahani AI Studio</p>
+      </footer>
     </div>
 
     <script src="client.js"></script>
-</body>
+  </body>
 </html>
