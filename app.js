@@ -31,6 +31,7 @@ const storage = multer.diskStorage({
     if (file.fieldname === "srt") subDir = "srt";
     if (file.fieldname === "bgAudio") subDir = "bgAudio";
     if (file.fieldname === "visual") subDir = "visual";
+    if (file.fieldname === "images") subDir = "images";
 
     const finalDir = path.join(sessionDir, subDir);
     console.log(
